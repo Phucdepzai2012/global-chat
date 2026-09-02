@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GLOBAL CHAT</title>
+    <title>GLOBAL CHAT - SINGLE ADMIN EXCLUSIVE</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #d6e2e9; display: flex; justify-content: center; align-items: center; height: 100vh; }
         
-        .chat-container { width: 100%; max-width: 480px; height: 100vh; max-height: 750px; background: #ebf0f4; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
+        .chat-container { width: 100%; max-width: 480px; height: 100vh; max-height: 750px; background: #ebf0f4; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; position: relative; }
         
         /* Header */
         .chat-header { background: #0088ff; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #0077e6; }
         .group-title { font-size: 18px; font-weight: bold; }
-        .admin-status { background: #ff4d4f; color: white; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: bold; }
+        .admin-status { background: #ff4d4f; color: white; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: bold; border: 1px solid #fff; }
 
         /* Profile Bar */
         .profile-bar { background: #fff; padding: 10px 12px; border-bottom: 1px solid #e0e0e0; display: flex; flex-direction: column; gap: 8px; }
@@ -23,6 +23,10 @@
         .file-label { background: #f0f2f5; border: 1px solid #ccc; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; color: #333; font-weight: 500; }
         .save-btn { background: #0088ff; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
         
+        /* Drag Overlay */
+        .drag-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 136, 255, 0.85); z-index: 99; color: white; font-size: 20px; font-weight: bold; align-items: center; justify-content: center; flex-direction: column; gap: 10px; pointer-events: none; }
+        .chat-container.drag-active .drag-overlay { display: flex; }
+
         /* Messages Area */
         .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #eef2f5; }
         .msg-row { display: flex; gap: 8px; align-items: flex-start; max-width: 85%; }
@@ -38,11 +42,11 @@
         
         .chat-media-img { max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 5px; display: block; cursor: pointer; }
         .chat-media-video { max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 5px; display: block; }
+        .youtube-iframe { width: 100%; height: 200px; border-radius: 8px; margin-top: 5px; border: none; }
 
         .msg-footer { display: flex; gap: 8px; align-items: center; margin-top: 3px; }
         .msg-time { font-size: 10px; color: #888; }
         .my-msg .msg-footer { justify-content: flex-end; }
-
         .delete-btn { background: none; border: none; color: #ff4d4f; cursor: pointer; font-size: 11px; font-weight: bold; }
 
         /* Input Area */
@@ -56,28 +60,33 @@
 </head>
 <body>
 
-<div class="chat-container">
+<div class="chat-container" id="chat-box">
+    <div class="drag-overlay">
+        <div>📥 Thả video hoặc ảnh vào đây</div>
+        <div style="font-size: 12px;">Đăng siêu tốc lập tức!</div>
+    </div>
+
     <div class="chat-header">
         <div class="group-title">GLOBAL CHAT</div>
-        <div id="admin-tag" class="admin-status" style="display: none;">QUẢN TRỊ VIÊN</div>
+        <div id="admin-tag" class="admin-status" style="display: none;">DUY NHẤT QUẢN TRỊ VIÊN</div>
     </div>
 
     <!-- Profile Bar -->
     <div class="profile-bar">
         <div class="profile-row">
             <img id="current-avatar-preview" class="avatar-preview" src="" alt="Avatar">
-            <input type="text" id="user-name-input" placeholder="Nhập tên riêng của bạn...">
+            <input type="text" id="user-name-input" placeholder="Nhập tên của bạn...">
         </div>
         <div class="profile-row" style="justify-content: space-between;">
             <label class="file-label">
-                📷 Chọn ảnh đại diện từ máy
+                📷 Đổi Ảnh Đại Diện
                 <input type="file" id="avatar-file-input" accept="image/*" style="display: none;">
             </label>
             <button class="save-btn" id="save-profile-btn">Lưu Thông Tin</button>
         </div>
     </div>
 
-    <div id="loading-bar" class="status-loading">🚀 Đang tải file lên GitHub Server...</div>
+    <div id="loading-bar" class="status-loading">🚀 Đang tải video/ảnh lên siêu tốc...</div>
 
     <!-- Messages Area -->
     <div class="chat-messages" id="chat-messages"></div>
@@ -88,20 +97,19 @@
             📎
             <input type="file" id="media-file-input" accept="image/*,video/*" style="display: none;">
         </label>
-        <input type="text" id="msg-input" placeholder="Nhập tin nhắn...">
+        <input type="text" id="msg-input" placeholder="Nhập tin nhắn, dán link YouTube/video...">
         <button class="send-btn" id="send-btn">Gửi</button>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, push, onValue, remove, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // 🔴 TOKEN GITHUB CỦA BẠN ĐÃ ĐƯỢC ĐIỀN VÀO ĐÂY:
     const GITHUB_CONFIG = {
         token: "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", 
-        owner: "TÊN_TÀI_KHOẢN_GITHUB_CỦA_BẠN", // Sửa tên tài khoản GitHub của bạn ở đây
-        repo: "TÊN_REPOSITORY_CỦA_BẠN",             // Sửa tên Kho chứa (Repo) của bạn ở đây
+        owner: "TÊN_TÀI_KHOẢN_GITHUB_CỦA_BẠN", 
+        repo: "TÊN_REPOSITORY_CỦA_BẠN",             
         branch: "main"
     };
 
@@ -119,6 +127,16 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // TẠO TOKEN ĐỊNH DANH DUY NHẤT CHO THIẾT BỊ NÀY
+    let deviceSessionId = localStorage.getItem('device_session_id');
+    if (!deviceSessionId) {
+        deviceSessionId = 'device_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('device_session_id', deviceSessionId);
+    }
+
+    const ADMIN_NAME = 'PHUCRAMDEPTRAI';
+    const ADMIN_PASSWORD = '123456'; // Mật khẩu xác minh Admin bí mật (Có thể đổi tùy ý)
+
     const randomId = Math.floor(1000 + Math.random() * 9000);
     const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + randomId;
 
@@ -128,19 +146,63 @@
     };
 
     let tempAvatarBase64 = currentUser.avatar;
+    let isRealAdmin = false;
 
     document.getElementById('user-name-input').value = currentUser.name;
     document.getElementById('current-avatar-preview').src = currentUser.avatar;
 
-    function checkAdminStatus() {
+    // KIỂM TRA QUYỀN ADMIN BẢO MẬT VÀ ĐỘC QUYỀN
+    async function verifyAndLockAdmin() {
         const adminTag = document.getElementById('admin-tag');
-        if (currentUser.name.trim() === 'PHUCRAM') {
-            adminTag.style.display = 'block';
+        
+        if (currentUser.name.trim() === ADMIN_NAME) {
+            // Kiểm tra mật khẩu đã lưu hoặc yêu cầu nhập
+            let savedPass = localStorage.getItem('admin_pass');
+            if (savedPass !== ADMIN_PASSWORD) {
+                const inputPass = prompt("Nhập Mật Khẩu Xác Minh Admin 'PHUCRAMDEPTRAI':");
+                if (inputPass === ADMIN_PASSWORD) {
+                    localStorage.setItem('admin_pass', ADMIN_PASSWORD);
+                } else {
+                    alert("Sai mật khẩu Admin! Tên của bạn sẽ được đổi lại mặc định.");
+                    currentUser.name = 'Thành viên #' + randomId;
+                    localStorage.setItem('chat_name', currentUser.name);
+                    document.getElementById('user-name-input').value = currentUser.name;
+                    isRealAdmin = false;
+                    adminTag.style.display = 'none';
+                    return;
+                }
+            }
+
+            // Đăng ký Session độc quyền lên Server Firebase
+            const adminRef = ref(db, 'system_admin_active');
+            const snapshot = await get(adminRef);
+            const activeSession = snapshot.val();
+
+            if (!activeSession || activeSession.sessionId === deviceSessionId || (Date.now() - activeSession.lastSeen > 30000)) {
+                // Khóa Admin cho thiết bị này
+                await set(adminRef, {
+                    sessionId: deviceSessionId,
+                    lastSeen: Date.now()
+                });
+                isRealAdmin = true;
+                adminTag.style.display = 'block';
+
+                // Giữ kết nối liên tục
+                setInterval(() => {
+                    set(adminRef, { sessionId: deviceSessionId, lastSeen: Date.now() });
+                }, 10000);
+            } else {
+                alert("Đã có thiết bị khác đang đăng nhập tài khoản PHUCRAMDEPTRAI!");
+                isRealAdmin = false;
+                adminTag.style.display = 'none';
+            }
         } else {
+            isRealAdmin = false;
             adminTag.style.display = 'none';
         }
     }
-    checkAdminStatus();
+
+    verifyAndLockAdmin();
 
     document.getElementById('avatar-file-input').addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -153,7 +215,7 @@
         reader.readAsDataURL(file);
     });
 
-    document.getElementById('save-profile-btn').addEventListener('click', () => {
+    document.getElementById('save-profile-btn').addEventListener('click', async () => {
         const inputName = document.getElementById('user-name-input').value.trim();
         if (inputName) currentUser.name = inputName;
         currentUser.avatar = tempAvatarBase64;
@@ -161,12 +223,12 @@
         localStorage.setItem('chat_name', currentUser.name);
         localStorage.setItem('chat_avatar', currentUser.avatar);
 
-        checkAdminStatus();
+        await verifyAndLockAdmin();
         alert('Đã lưu thông tin!');
         location.reload();
     });
 
-    // TẢI FILE TRỰC TIẾP LÊN SERVER GITHUB
+    // UPLOAD FILE GITHUB
     async function uploadFileToGitHub(file) {
         const fileName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
         const path = `uploads/${fileName}`;
@@ -185,54 +247,18 @@
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                message: `Upload media from chat: ${fileName}`,
+                message: `Upload media: ${fileName}`,
                 content: base64Content,
                 branch: GITHUB_CONFIG.branch
             })
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.message || 'Lỗi kết nối GitHub API. Hãy kiểm tra lại Tên tài khoản và Tên Repo!');
-        }
-
-        // Dùng CDN jsDelivr để load video/ảnh cực nhanh cho mọi người
+        if (!response.ok) throw new Error('Không thể tải file lên server!');
         return `https://cdn.jsdelivr.net/gh/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}@${GITHUB_CONFIG.branch}/${path}`;
     }
 
-    // GỬI TIN NHẮN
-    function sendMessage(mediaUrl = null, mediaType = null) {
-        const input = document.getElementById('msg-input');
-        const text = input.value.trim();
-        if (!text && !mediaUrl) return;
-
-        const messageData = {
-            sender: currentUser.name,
-            avatar: currentUser.avatar,
-            text: text,
-            mediaUrl: mediaUrl || null,
-            mediaType: mediaType || null,
-            timestamp: Date.now()
-        };
-
-        push(ref(db, 'global_chat_messages'), messageData)
-            .then(() => {
-                input.value = '';
-            })
-            .catch((err) => {
-                alert('Lỗi gửi tin nhắn: ' + err.message);
-            });
-    }
-
-    document.getElementById('send-btn').addEventListener('click', () => sendMessage());
-    document.getElementById('msg-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-
-    document.getElementById('media-file-input').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
+    async function handleFileUpload(file) {
         if (!file) return;
-
         const loadingBar = document.getElementById('loading-bar');
         loadingBar.style.display = 'block';
 
@@ -241,30 +267,100 @@
             const isVideo = file.type.startsWith('video');
             sendMessage(fileUrl, isVideo ? 'video' : 'image');
         } catch (err) {
-            alert('Lỗi Upload: ' + err.message);
+            alert('Lỗi upload: ' + err.message);
         } finally {
             loadingBar.style.display = 'none';
-            e.target.value = '';
         }
+    }
+
+    // DRAG & DROP
+    const chatBox = document.getElementById('chat-box');
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        chatBox.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chatBox.classList.add('drag-active');
+        }, false);
     });
 
+    ['dragleave', 'drop'].forEach(eventName => {
+        chatBox.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            chatBox.classList.remove('drag-active');
+        }, false);
+    });
+
+    chatBox.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) handleFileUpload(files[0]);
+    });
+
+    function getYouTubeEmbedUrl(url) {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? `https://www.youtube.com/embed/${match[2]}` : null;
+    }
+
+    // GỬI TIN NHẮN
+    function sendMessage(mediaUrl = null, mediaType = null) {
+        const input = document.getElementById('msg-input');
+        const text = input.value.trim();
+        if (!text && !mediaUrl) return;
+
+        let finalType = mediaType;
+        let finalUrl = mediaUrl;
+
+        if (text) {
+            const ytEmbed = getYouTubeEmbedUrl(text);
+            if (ytEmbed) {
+                finalUrl = ytEmbed;
+                finalType = 'youtube';
+            }
+        }
+
+        const messageData = {
+            sender: currentUser.name,
+            avatar: currentUser.avatar,
+            text: text,
+            mediaUrl: finalUrl || null,
+            mediaType: finalType || null,
+            timestamp: Date.now()
+        };
+
+        push(ref(db, 'global_chat_messages'), messageData)
+            .then(() => { input.value = ''; })
+            .catch((err) => { alert('Lỗi gửi tin nhắn: ' + err.message); });
+    }
+
+    document.getElementById('send-btn').addEventListener('click', () => sendMessage());
+    document.getElementById('msg-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    document.getElementById('media-file-input').addEventListener('change', (e) => {
+        if (e.target.files[0]) handleFileUpload(e.target.files[0]);
+    });
+
+    // CHỈ CHỈNH SỬA / XÓA TIN NHẮN NẾU XÁC MINH LÀ REAL ADMIN
     window.deleteMessage = function(key) {
-        if (currentUser.name.trim() === 'PHUCRAM') {
+        if (isRealAdmin) {
             if (confirm('Xác nhận xóa tin nhắn này?')) {
                 remove(ref(db, 'global_chat_messages/' + key));
             }
+        } else {
+            alert("Bạn không phải Admin chính thức!");
         }
     };
 
-    // ĐỒNG BỘ TIN NHẮN THỜI GIAN THỰC ĐẾN MỌI THIẾT BỊ
+    // NHẬN TIN NHẮN REALTIME
     onValue(ref(db, 'global_chat_messages'), (snapshot) => {
         const container = document.getElementById('chat-messages');
         container.innerHTML = '';
         
         const data = snapshot.val();
         if (!data) return;
-
-        const isAdmin = (currentUser.name.trim() === 'PHUCRAM');
 
         Object.keys(data).forEach((key) => {
             const msg = data[key];
@@ -280,6 +376,8 @@
                     mediaHTML = `<img src="${msg.mediaUrl}" class="chat-media-img" onclick="window.open('${msg.mediaUrl}', '_blank')">`;
                 } else if (msg.mediaType === 'video') {
                     mediaHTML = `<video src="${msg.mediaUrl}" class="chat-media-video" controls preload="metadata"></video>`;
+                } else if (msg.mediaType === 'youtube') {
+                    mediaHTML = `<iframe class="youtube-iframe" src="${msg.mediaUrl}" allowfullscreen></iframe>`;
                 }
             }
 
@@ -293,7 +391,7 @@
                     </div>
                     <div class="msg-footer">
                         <span class="msg-time">${timeStr}</span>
-                        ${isAdmin ? `<button class="delete-btn" onclick="deleteMessage('${key}')">Xóa</button>` : ''}
+                        ${isRealAdmin ? `<button class="delete-btn" onclick="deleteMessage('${key}')">Xóa</button>` : ''}
                     </div>
                 </div>
             `;
