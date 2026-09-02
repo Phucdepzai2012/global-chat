@@ -51,7 +51,7 @@
         .media-upload-btn { background: #e4e6eb; border: none; padding: 8px 12px; border-radius: 50%; cursor: pointer; font-size: 16px; }
         .chat-input button.send-btn { background: #0088ff; color: white; border: none; padding: 10px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; }
         
-        .status-loading { font-size: 11px; color: #0088ff; font-weight: bold; text-align: center; display: none; padding: 4px; }
+        .status-loading { font-size: 11px; color: #0088ff; font-weight: bold; text-align: center; display: none; padding: 6px; background: #e5efff; border-bottom: 1px solid #cce0ff; }
     </style>
 </head>
 <body>
@@ -77,10 +77,10 @@
         </div>
     </div>
 
+    <div id="loading-bar" class="status-loading">🚀 Đang tải file lên GitHub Server...</div>
+
     <!-- Messages Area -->
     <div class="chat-messages" id="chat-messages"></div>
-    
-    <div id="loading-bar" class="status-loading">⏳ Đang xử lý file...</div>
 
     <!-- Input Bar -->
     <div class="chat-input">
@@ -93,20 +93,18 @@
     </div>
 </div>
 
-<!-- Firebase Modular SDKs -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // CẤU HÌNH GITHUB (Tuỳ chọn: điền vào nếu muốn dùng Server GitHub lưu ảnh/video dung lượng lớn)
+    // 🔴 TOKEN GITHUB CỦA BẠN ĐÃ ĐƯỢC ĐIỀN VÀO ĐÂY:
     const GITHUB_CONFIG = {
-        token: "", 
-        owner: "", 
-        repo: "", 
+        token: "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", 
+        owner: "TÊN_TÀI_KHOẢN_GITHUB_CỦA_BẠN", // Sửa tên tài khoản GitHub của bạn ở đây
+        repo: "TÊN_REPOSITORY_CỦA_BẠN",             // Sửa tên Kho chứa (Repo) của bạn ở đây
         branch: "main"
     };
 
-    // CẤU HÌNH FIREBASE MỚI CỦA BẠN
     const firebaseConfig = {
         apiKey: "AIzaSyCDQsJ_NrGK5ouRLS7vFr55OBZQ0nKhHSk",
         authDomain: "vietnam-life-game.firebaseapp.com",
@@ -121,7 +119,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // XỬ LÝ USER PROFILE
     const randomId = Math.floor(1000 + Math.random() * 9000);
     const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + randomId;
 
@@ -145,7 +142,6 @@
     }
     checkAdminStatus();
 
-    // XỬ LÝ ĐỔI AVATAR TỪ MÁY
     document.getElementById('avatar-file-input').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -170,43 +166,38 @@
         location.reload();
     });
 
-    // TẢI FILE LÊN GITHUB HOẶC NẾU CHƯA CÓ TOKEN SẼ CHUYỂN DẠNG BASE64
-    async function processFile(file) {
-        if (GITHUB_CONFIG.token && GITHUB_CONFIG.owner && GITHUB_CONFIG.repo) {
-            const fileName = Date.now() + '_' + file.name.replace(/\s+/g, '_');
-            const path = `uploads/${fileName}`;
-            const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
+    // TẢI FILE TRỰC TIẾP LÊN SERVER GITHUB
+    async function uploadFileToGitHub(file) {
+        const fileName = Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+        const path = `uploads/${fileName}`;
+        const url = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${path}`;
 
-            const base64Content = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result.split(',')[1]);
-                reader.readAsDataURL(file);
-            });
+        const base64Content = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
 
-            const response = await fetch(url, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${GITHUB_CONFIG.token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    message: `Upload media: ${fileName}`,
-                    content: base64Content,
-                    branch: GITHUB_CONFIG.branch
-                })
-            });
+        const response = await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_CONFIG.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: `Upload media from chat: ${fileName}`,
+                content: base64Content,
+                branch: GITHUB_CONFIG.branch
+            })
+        });
 
-            if (!response.ok) throw new Error('GitHub Token không hợp lệ');
-
-            return `https://raw.githubusercontent.com/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}`;
-        } else {
-            // Tự động chuyển file sang Data-URL Base64 nếu không cấu hình GitHub
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
-            });
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.message || 'Lỗi kết nối GitHub API. Hãy kiểm tra lại Tên tài khoản và Tên Repo!');
         }
+
+        // Dùng CDN jsDelivr để load video/ảnh cực nhanh cho mọi người
+        return `https://cdn.jsdelivr.net/gh/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}@${GITHUB_CONFIG.branch}/${path}`;
     }
 
     // GỬI TIN NHẮN
@@ -229,7 +220,7 @@
                 input.value = '';
             })
             .catch((err) => {
-                alert('Chưa bật Rules Realtime Database trên Firebase: ' + err.message);
+                alert('Lỗi gửi tin nhắn: ' + err.message);
             });
     }
 
@@ -246,18 +237,17 @@
         loadingBar.style.display = 'block';
 
         try {
-            const fileUrl = await processFile(file);
+            const fileUrl = await uploadFileToGitHub(file);
             const isVideo = file.type.startsWith('video');
             sendMessage(fileUrl, isVideo ? 'video' : 'image');
         } catch (err) {
-            alert('Lỗi xử lý file: ' + err.message);
+            alert('Lỗi Upload: ' + err.message);
         } finally {
             loadingBar.style.display = 'none';
             e.target.value = '';
         }
     });
 
-    // XÓA TIN NHẮN (CHỈ DÀNH CHO QUẢN TRỊ VIÊN "PHUCRAM")
     window.deleteMessage = function(key) {
         if (currentUser.name.trim() === 'PHUCRAM') {
             if (confirm('Xác nhận xóa tin nhắn này?')) {
@@ -266,7 +256,7 @@
         }
     };
 
-    // ĐỒNG BỘ TIN NHẮN THỜI GIAN THỰC
+    // ĐỒNG BỘ TIN NHẮN THỜI GIAN THỰC ĐẾN MỌI THIẾT BỊ
     onValue(ref(db, 'global_chat_messages'), (snapshot) => {
         const container = document.getElementById('chat-messages');
         container.innerHTML = '';
@@ -289,7 +279,7 @@
                 if (msg.mediaType === 'image') {
                     mediaHTML = `<img src="${msg.mediaUrl}" class="chat-media-img" onclick="window.open('${msg.mediaUrl}', '_blank')">`;
                 } else if (msg.mediaType === 'video') {
-                    mediaHTML = `<video src="${msg.mediaUrl}" class="chat-media-video" controls></video>`;
+                    mediaHTML = `<video src="${msg.mediaUrl}" class="chat-media-video" controls preload="metadata"></video>`;
                 }
             }
 
