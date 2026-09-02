@@ -10,15 +10,21 @@
         
         .chat-container { width: 100%; max-width: 480px; height: 100vh; max-height: 750px; background: #ebf0f4; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
         
-        /* Header Group Chat Zalo style */
+        /* Header Group Chat */
         .chat-header { background: #0088ff; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #0077e6; }
         .group-title { font-size: 18px; font-weight: bold; letter-spacing: 0.5px; }
         .admin-status { background: #ff4d4f; color: white; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: bold; }
 
-        /* Profile Bar (Chỗ cài đặt Tên & Avatar) */
-        .profile-bar { background: #fff; padding: 10px 12px; border-bottom: 1px solid #e0e0e0; display: flex; gap: 8px; align-items: center; }
-        .profile-bar input { flex: 1; border: 1px solid #ccc; padding: 6px 10px; border-radius: 6px; font-size: 13px; outline: none; }
-        .profile-bar button { background: #0088ff; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
+        /* Profile Bar (Đổi tên & chọn ảnh từ máy) */
+        .profile-bar { background: #fff; padding: 10px 12px; border-bottom: 1px solid #e0e0e0; display: flex; flex-direction: column; gap: 8px; }
+        .profile-row { display: flex; gap: 8px; align-items: center; }
+        .profile-bar input[type="text"] { flex: 1; border: 1px solid #ccc; padding: 6px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+        
+        /* Custom File Upload Button */
+        .avatar-preview { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; }
+        .file-label { background: #f0f2f5; border: 1px solid #ccc; padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; color: #333; font-weight: 500; }
+        .file-label:hover { background: #e4e6eb; }
+        .save-btn { background: #0088ff; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
         
         /* Chat Messages */
         .chat-messages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #eef2f5; }
@@ -49,17 +55,24 @@
 <body>
 
 <div class="chat-container">
-    <!-- Header của Group Chat -->
     <div class="chat-header">
         <div class="group-title">GLOBAL CHAT</div>
         <div id="admin-tag" class="admin-status" style="display: none;">QUẢN TRỊ VIÊN</div>
     </div>
 
-    <!-- Thanh nhập Tên & Đổi ảnh đại diện -->
+    <!-- Thanh cài đặt Tên & Tải ảnh đại diện từ máy -->
     <div class="profile-bar">
-        <input type="text" id="user-name-input" placeholder="Nhập tên riêng của bạn...">
-        <input type="text" id="user-avatar-input" placeholder="URL Ảnh đại diện...">
-        <button onclick="saveProfile()">Lưu</button>
+        <div class="profile-row">
+            <img id="current-avatar-preview" class="avatar-preview" src="" alt="Avatar">
+            <input type="text" id="user-name-input" placeholder="Nhập tên riêng của bạn...">
+        </div>
+        <div class="profile-row" style="justify-content: space-between;">
+            <label class="file-label">
+                📷 Chọn ảnh từ máy
+                <input type="file" id="file-input" accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+            </label>
+            <button class="save-btn" onclick="saveProfile()">Lưu Thay Đổi</button>
+        </div>
     </div>
 
     <!-- Khung tin nhắn -->
@@ -72,33 +85,31 @@
     </div>
 </div>
 
-<!-- Firebase Realtime Database SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<!-- Thu viện GunDB giúp chat thời gian thực không cần tạo Server/Database -->
+<script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
 
 <script>
-    // 1. CẤU HÌNH FIREBASE REALTIME DATABASE
-    // Thay link Database của bạn vào đây
-    const firebaseConfig = {
-        databaseURL: "https://YOUR_DATABASE_NAME.firebaseio.com"
-    };
+    // 1. KHỞI TẠO DỊCH VỤ DATABASE THỜI GIAN THỰC MIỄN PHÍ
+    const gun = Gun([
+        'https://gun-manhattan.herokuapp.com/gun',
+        'https://peer.wallrpc.com/gun'
+    ]);
+    const chatRoom = gun.get('global_chat_room_phucram_v1');
 
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    const db = firebase.database();
+    // 2. KHỞI TẠO THÔNG TIN NGƯỜI DÙNG RIÊNG BIỆT
+    const randomId = Math.floor(1000 + Math.random() * 9000);
+    const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + randomId;
 
-    // 2. TẠO MÃ TÊN VÀ AVATAR NGẪU NHIÊN RIÊNG BIỆT CHO MỖI NGƯỜI
-    const randomId = Math.floor(1000 + Math.random() * 9000); // Tạo số ngẫu nhiên 4 chữ số (VD: 4829)
-    
     let currentUser = {
         name: localStorage.getItem('chat_name') || ('Thành viên #' + randomId),
-        avatar: localStorage.getItem('chat_avatar') || ('https://api.dicebear.com/7.x/bottts/svg?seed=' + randomId)
+        avatar: localStorage.getItem('chat_avatar') || defaultAvatar
     };
 
-    // Đưa thông tin hiện tại vào thanh profile
+    let tempAvatarBase64 = currentUser.avatar;
+
+    // Hiển thị thông tin lên giao diện
     document.getElementById('user-name-input').value = currentUser.name;
-    document.getElementById('user-avatar-input').value = currentUser.avatar;
+    document.getElementById('current-avatar-preview').src = currentUser.avatar;
 
     function checkAdminStatus() {
         const adminTag = document.getElementById('admin-tag');
@@ -110,36 +121,56 @@
     }
     checkAdminStatus();
 
-    // 3. LƯU PROFILE KHI ĐỔI TÊN/AVATAR
+    // 3. XỬ LÝ ĐỌC FILE ẢNH TỪ MÁY TÍNH
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Giới hạn kích thước ảnh dưới 2MB
+        if (file.size > 2 * 1024 * 1024) {
+            alert('Ảnh quá lớn! Vui lòng chọn ảnh dưới 2MB.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            tempAvatarBase64 = e.target.result;
+            document.getElementById('current-avatar-preview').src = tempAvatarBase64;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 4. LƯU PROFILE
     function saveProfile() {
         const inputName = document.getElementById('user-name-input').value.trim();
-        const inputAvatar = document.getElementById('user-avatar-input').value.trim();
 
         if (inputName) currentUser.name = inputName;
-        if (inputAvatar) currentUser.avatar = inputAvatar;
+        currentUser.avatar = tempAvatarBase64;
 
         localStorage.setItem('chat_name', currentUser.name);
         localStorage.setItem('chat_avatar', currentUser.avatar);
 
         checkAdminStatus();
-        alert('Đã đổi thông tin thành công!');
+        alert('Đã cập nhật tên và ảnh đại diện thành công!');
         location.reload();
     }
 
-    // 4. GỬI TIN NHẮN
+    // 5. GỬI TIN NHẮN
     function sendMessage() {
         const input = document.getElementById('msg-input');
         const text = input.value.trim();
         if (!text) return;
 
-        const messageData = {
+        const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        chatRoom.get(msgId).put({
+            id: msgId,
             sender: currentUser.name,
             avatar: currentUser.avatar,
             text: text,
             timestamp: Date.now()
-        };
+        });
 
-        db.ref('messages').push(messageData);
         input.value = '';
     }
 
@@ -147,43 +178,59 @@
         if (e.key === 'Enter') sendMessage();
     }
 
-    // 5. XÓA TIN NHẮN (CHỈ KHI TÊN LÀ "PHUCRAM")
-    function deleteMessage(key) {
+    // 6. XÓA TIN NHẮN (DÀNH CHO ADMIN "PHUCRAM")
+    function deleteMessage(msgId) {
         if (currentUser.name.trim() === 'PHUCRAM') {
             if (confirm('Xác nhận xóa tin nhắn này?')) {
-                db.ref('messages/' + key).remove();
+                chatRoom.get(msgId).put(null);
             }
         }
     }
 
-    // 6. LẮNG NGHE VÀ ĐỒNG BỘ TIN NHẮN THỜI GIAN THỰC
-    const messagesRef = db.ref('messages');
-    messagesRef.on('value', (snapshot) => {
+    // 7. NẠP VÀ LẮNG NGHE TIN NHẮN THỜI GIAN THỰC
+    const loadedMessages = {};
+
+    chatRoom.map().on((data, id) => {
+        const container = document.getElementById('chat-messages');
+
+        // Nếu tin nhắn bị xóa
+        if (!data) {
+            const existingElement = document.getElementById(id);
+            if (existingElement) existingElement.remove();
+            delete loadedMessages[id];
+            return;
+        }
+
+        loadedMessages[id] = data;
+        renderMessages();
+    });
+
+    function renderMessages() {
         const container = document.getElementById('chat-messages');
         container.innerHTML = '';
-        
-        const data = snapshot.val();
-        if (!data) return;
+
+        const messageList = Object.values(loadedMessages)
+            .filter(msg => msg && msg.timestamp)
+            .sort((a, b) => a.timestamp - b.timestamp);
 
         const isAdmin = (currentUser.name.trim() === 'PHUCRAM');
 
-        Object.keys(data).forEach((key) => {
-            const msg = data[key];
+        messageList.forEach(msg => {
             const isMe = (msg.sender === currentUser.name);
-            
             const timeStr = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             const msgRow = document.createElement('div');
             msgRow.className = `msg-row ${isMe ? 'my-msg' : ''}`;
+            msgRow.id = msg.id;
 
             msgRow.innerHTML = `
-                <img class="msg-avatar" src="${msg.avatar}" alt="Avatar" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=fallback'">
+                <img class="msg-avatar" src="${msg.avatar}" alt="Avatar">
                 <div class="msg-content">
                     <div class="msg-sender">${msg.sender}</div>
-                    <div class="msg-bubble">${msg.text}</div>
+                    <div class="msg-bubble">${escapeHtml(msg.text)}</div>
                     <div class="msg-footer">
                         <span class="msg-time">${timeStr}</span>
-                        ${isAdmin ? `<button class="delete-btn" onclick="deleteMessage('${key}')">Xóa</button>` : ''}
+                        ${isAdmin ? `<button class="delete-btn" onclick="deleteMessage('${msg.id}')">Xóa</button>` : ''}
                     </div>
                 </div>
             `;
@@ -191,9 +238,12 @@
             container.appendChild(msgRow);
         });
 
-        // Cuộn xuống cuối khung chat
         container.scrollTop = container.scrollHeight;
-    });
+    }
+
+    function escapeHtml(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
 </script>
 </body>
 </html>
