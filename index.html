@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GLOBAL CHAT - SINGLE ADMIN EXCLUSIVE</title>
+    <title>GLOBAL CHAT - ULTRA SPEED</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #d6e2e9; display: flex; justify-content: center; align-items: center; height: 100vh; }
@@ -106,10 +106,11 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, push, onValue, remove, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+    // 🔴 CẤU HÌNH GITHUB CỦA BẠN:
     const GITHUB_CONFIG = {
-        token: "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", 
-        owner: "TÊN_TÀI_KHOẢN_GITHUB_CỦA_BẠN", 
-        repo: "TÊN_REPOSITORY_CỦA_BẠN",             
+        token: "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", 
+        owner: "TÊN_TÀI_KHOẢN_GITHUB_CỦA_BẠN", // Điền Username GitHub của bạn vào đây
+        repo: "TÊN_REPOSITORY_CỦA_BẠN",             // Điền tên Repository của bạn vào đây
         branch: "main"
     };
 
@@ -135,7 +136,7 @@
     }
 
     const ADMIN_NAME = 'PHUCRAMDEPTRAI';
-    const ADMIN_PASSWORD = '123456'; // Mật khẩu xác minh Admin bí mật (Có thể đổi tùy ý)
+    const ADMIN_PASSWORD = '123456'; // Mật khẩu xác minh Admin bí mật
 
     const randomId = Math.floor(1000 + Math.random() * 9000);
     const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + randomId;
@@ -156,7 +157,6 @@
         const adminTag = document.getElementById('admin-tag');
         
         if (currentUser.name.trim() === ADMIN_NAME) {
-            // Kiểm tra mật khẩu đã lưu hoặc yêu cầu nhập
             let savedPass = localStorage.getItem('admin_pass');
             if (savedPass !== ADMIN_PASSWORD) {
                 const inputPass = prompt("Nhập Mật Khẩu Xác Minh Admin 'PHUCRAMDEPTRAI':");
@@ -173,13 +173,11 @@
                 }
             }
 
-            // Đăng ký Session độc quyền lên Server Firebase
             const adminRef = ref(db, 'system_admin_active');
             const snapshot = await get(adminRef);
             const activeSession = snapshot.val();
 
             if (!activeSession || activeSession.sessionId === deviceSessionId || (Date.now() - activeSession.lastSeen > 30000)) {
-                // Khóa Admin cho thiết bị này
                 await set(adminRef, {
                     sessionId: deviceSessionId,
                     lastSeen: Date.now()
@@ -187,7 +185,6 @@
                 isRealAdmin = true;
                 adminTag.style.display = 'block';
 
-                // Giữ kết nối liên tục
                 setInterval(() => {
                     set(adminRef, { sessionId: deviceSessionId, lastSeen: Date.now() });
                 }, 10000);
@@ -253,7 +250,7 @@
             })
         });
 
-        if (!response.ok) throw new Error('Không thể tải file lên server!');
+        if (!response.ok) throw new Error('Không thể tải file lên server! Kiểm tra lại Owner/Repo GitHub.');
         return `https://cdn.jsdelivr.net/gh/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}@${GITHUB_CONFIG.branch}/${path}`;
     }
 
@@ -343,7 +340,7 @@
         if (e.target.files[0]) handleFileUpload(e.target.files[0]);
     });
 
-    // CHỈ CHỈNH SỬA / XÓA TIN NHẮN NẾU XÁC MINH LÀ REAL ADMIN
+    // CHỈ CHO PHÉP XÓA TIN NHẮN NẾU LÀ REAL ADMIN
     window.deleteMessage = function(key) {
         if (isRealAdmin) {
             if (confirm('Xác nhận xóa tin nhắn này?')) {
